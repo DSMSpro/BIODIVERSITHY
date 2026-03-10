@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>India Cognitive Biodiversity Dashboard</title>
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <style>
+    body { font-family: Arial; text-align: center; background: #d8ffe6; }
+
+    button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+    .active { background: darkgreen; color: white; }
+
+    select { padding: 10px; width: 320px; margin: 10px; }
+
+    #map { height: 400px; width: 85%; margin: auto; border-radius: 15px; }
+
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: darkgreen;
+      color: white;
+      padding: 10px;
+    }
+
+    td {
+      padding: 10px;
+      background: white;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1> India Cognitive Biodiversity AI Dashboard</h1>
+
+<button id="floraBtn" class="active">Flora </button>
+<button id="faunaBtn">Fauna </button>
+
+<br>
+
+<select id="speciesDropdown"></select>
+<select id="stateDropdown"></select>
+
+<button id="analyzeBtn">Analyze Risk</button>
+
+<div id="map"></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Species</th>
+      <th>State</th>
+      <th>Temp</th>
+      <th>AQI</th>
+      <th>Threat</th>
+      <th>ML Risk</th>
+      <th>RL Action</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td id="tSpecies"></td>
+      <td id="tState"></td>
+      <td id="tTemp"></td>
+      <td id="tAQI"></td>
+      <td id="tThreat"></td>
+      <td id="tRisk"></td>
+      <td id="tAction"></td>
+    </tr>
+  </tbody>
+</table>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
