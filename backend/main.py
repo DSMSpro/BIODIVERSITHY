@@ -7,7 +7,7 @@ from rl_agent import rl_recommendation
 
 app = FastAPI()
 
-# Enable frontend access
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,23 +15,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# AQICN Token
 AQICN_TOKEN = "66f7da3b6af1026b572b9e24f32e8726d4154e4b"
 
-# Load ML Model
 model = joblib.load("risk_model.pkl")
 
 
 # ---------------------------------------------------
-# 1. Fetch Species from GBIF (India + Flora/Fauna)
+# Fetch Species
 # ---------------------------------------------------
 def fetch_species(category: str, limit: int = 30):
 
-    kingdom = "Plantae" if category == "flora" else "Animalia"
+    if category == "flora":
+        kingdomKey = 6
+    else:
+        kingdomKey = 1
 
     url = (
         f"https://api.gbif.org/v1/occurrence/search?"
-        f"country=IN&kingdom={kingdom}&limit={limit}"
+        f"country=IN&kingdomKey={kingdomKey}&limit={limit}"
     )
 
     data = requests.get(url).json()
@@ -39,7 +40,7 @@ def fetch_species(category: str, limit: int = 30):
     species_set = set()
 
     for rec in data.get("results", []):
-        sp = rec.get("scientificName")
+        sp = rec.get("species") or rec.get("scientificName")
         if sp:
             species_set.add(sp)
 
@@ -47,11 +48,12 @@ def fetch_species(category: str, limit: int = 30):
 
 
 # ---------------------------------------------------
-# 2. Fetch Indian States from GBIF
+# Fetch States
 # ---------------------------------------------------
 def fetch_states(limit: int = 50):
 
     url = f"https://api.gbif.org/v1/occurrence/search?country=IN&limit={limit}"
+
     data = requests.get(url).json()
 
     state_set = set()
@@ -65,10 +67,11 @@ def fetch_states(limit: int = 50):
 
 
 # ---------------------------------------------------
-# API: Options Endpoint
+# Options API
 # ---------------------------------------------------
 @app.get("/options")
 def get_options(category: str = Query(...)):
+
     return {
         "species": fetch_species(category),
         "states": fetch_states()
@@ -76,41 +79,24 @@ def get_options(category: str = Query(...)):
 
 
 # ---------------------------------------------------
-# 3. Coordinates from GBIF Occurrence (India + State)
-# ---------------------------------------------------
-def get_coordinates(species: str, state: str):
-
-    url = (
-        f"https://api.gbif.org/v1/occurrence/search?"
-        f"country=IN&scientificName={species}&stateProvince={state}&limit=1"
-    )
-
-    data = requests.get(url).json()
-
-    if not data.get("results"):
-        return None, None
-
-    rec = data["results"][0]
-    return rec.get("decimalLatitude"), rec.get("decimalLongitude")
-
-
-# ---------------------------------------------------
-# 4. Weather from Open-Meteo
+# Weather API
 # ---------------------------------------------------
 def get_weather(lat, lon):
 
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+
     data = requests.get(url).json()
 
     return data["current_weather"]["temperature"]
 
 
 # ---------------------------------------------------
-# 5. AQI from AQICN
+# AQI API
 # ---------------------------------------------------
 def get_aqi(lat, lon):
 
     url = f"https://api.waqi.info/feed/geo:{lat};{lon}/?token={AQICN_TOKEN}"
+
     data = requests.get(url).json()
 
     if data["status"] != "ok":
@@ -120,7 +106,7 @@ def get_aqi(lat, lon):
 
 
 # ---------------------------------------------------
-# 6. Threat Status from Wikidata
+# Threat Status
 # ---------------------------------------------------
 def get_threat_status(species: str):
 
@@ -134,6 +120,7 @@ def get_threat_status(species: str):
     """
 
     url = "https://query.wikidata.org/sparql"
+
     headers = {"Accept": "application/json"}
 
     r = requests.get(url, params={"query": query}, headers=headers)
@@ -160,40 +147,70 @@ def get_threat_status(species: str):
 
 
 # ---------------------------------------------------
-# FINAL Analyze Endpoint (India + ML + RL)
+# Analyze API (MULTIPLE LOCATIONS)
 # ---------------------------------------------------
 @app.get("/analyze")
 def analyze(species: str, state: str, category: str):
 
-    lat, lon = get_coordinates(species, state)
+    if state == "all":
 
-    if lat is None:
-        return {"error": "No occurrence found for this species in selected Indian state"}
+        url = (
+            f"https://api.gbif.org/v1/occurrence/search?"
+            f"country=IN&scientificName={species}&limit=20"
+        )
 
-    temp = get_weather(lat, lon)
-    aqi = get_aqi(lat, lon)
+    else:
+
+        url = (
+            f"https://api.gbif.org/v1/occurrence/search?"
+            f"country=IN&scientificName={species}&stateProvince={state}&limit=20"
+        )
+
+    data = requests.get(url).json()
+
+    results = []
 
     threat_status, threat_score = get_threat_status(species)
 
-    cat_val = 0 if category == "flora" else 1
+    for rec in data.get("results", []):
 
-    features = np.array([[temp, aqi, cat_val, threat_score]])
-    pred = model.predict(features)[0]
+        lat = rec.get("decimalLatitude")
+        lon = rec.get("decimalLongitude")
 
-    risk_map = {0: "LOW", 1: "MEDIUM", 2: "HIGH"}
-    risk = risk_map[pred]
+        if not lat or not lon:
+            continue
 
-    action = rl_recommendation(risk)
+        state_name = rec.get("stateProvince", "Unknown")
 
-    return {
-        "species": species,
-        "state": state,
-        "category": category,
-        "lat": lat,
-        "lon": lon,
-        "temperature": temp,
-        "aqi": aqi,
-        "threat_status": threat_status,
-        "ml_risk": risk,
-        "rl_action": action
-    }
+        temp = get_weather(lat, lon)
+        aqi = get_aqi(lat, lon)
+
+        cat_val = 0 if category == "flora" else 1
+
+        features = np.array([[temp, aqi, cat_val, threat_score]])
+
+        pred = model.predict(features)[0]
+
+        risk_map = {
+            0: "LOW",
+            1: "MEDIUM",
+            2: "HIGH"
+        }
+
+        risk = risk_map[pred]
+
+        action = rl_recommendation(risk)
+
+        results.append({
+            "species": species,
+            "state": state_name,
+            "lat": lat,
+            "lon": lon,
+            "temperature": temp,
+            "aqi": aqi,
+            "threat_status": threat_status,
+            "ml_risk": risk,
+            "rl_action": action
+        })
+
+    return results

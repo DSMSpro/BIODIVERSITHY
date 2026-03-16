@@ -1,47 +1,136 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>India Cognitive Biodiversity Dashboard</title>
+<title>India Cognitive Biodiversity AI Dashboard</title>
 
-  <link rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-  <style>
-    body { font-family: Arial; text-align: center; background: #d8ffe6; }
+<style>
 
-    button { padding: 10px 20px; margin: 10px; cursor: pointer; }
-    .active { background: darkgreen; color: white; }
+body{
+font-family:Arial;
+text-align:center;
+background:#d8ffe6;
+}
 
-    select { padding: 10px; width: 320px; margin: 10px; }
+button{
+padding:10px 20px;
+margin:10px;
+cursor:pointer;
+}
 
-    #map { height: 400px; width: 85%; margin: auto; border-radius: 15px; }
+.active{
+background:darkgreen;
+color:white;
+}
 
-    table {
-      width: 90%;
-      margin: 20px auto;
-      border-collapse: collapse;
-    }
+select{
+padding:10px;
+width:320px;
+margin:10px;
+}
 
-    th {
-      background: darkgreen;
-      color: white;
-      padding: 10px;
-    }
+#map{
+height:400px;
+width:85%;
+margin:auto;
+border-radius:15px;
+}
 
-    td {
-      padding: 10px;
-      background: white;
-      border: 1px solid black;
-    }
-  </style>
+table{
+width:90%;
+margin:20px auto;
+border-collapse:collapse;
+}
+
+th{
+background:darkgreen;
+color:white;
+padding:10px;
+}
+
+td{
+padding:10px;
+background:white;
+border:1px solid black;
+}
+
+.species-link{
+color:darkblue;
+cursor:pointer;
+text-decoration:underline;
+font-weight:bold;
+}
+
+
+/* Spinner */
+
+#loadingContainer{
+display:none;
+margin-top:10px;
+}
+
+.spinner{
+width:40px;
+height:40px;
+border:5px solid #ccc;
+border-top:5px solid darkgreen;
+border-radius:50%;
+animation:spin 1s linear infinite;
+margin:auto;
+}
+
+@keyframes spin{
+0%{transform:rotate(0deg);}
+100%{transform:rotate(360deg);}
+}
+
+
+/* Wikipedia popup */
+
+.popup{
+display:none;
+position:fixed;
+z-index:999;
+left:0;
+top:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.5);
+}
+
+.popup-content{
+background:white;
+width:500px;
+padding:20px;
+margin:7% auto;
+border-radius:10px;
+text-align:center;
+}
+
+#wikiImage{
+width:250px;
+margin:10px;
+border-radius:10px;
+}
+
+#closePopup{
+float:right;
+font-size:22px;
+cursor:pointer;
+}
+
+</style>
 </head>
 
 <body>
 
-<h1> India Cognitive Biodiversity AI Dashboard</h1>
+<h1>India Cognitive Biodiversity AI Dashboard</h1>
 
-<button id="floraBtn" class="active">Flora </button>
-<button id="faunaBtn">Fauna </button>
+<button id="floraBtn" class="active">Flora</button>
+<button id="faunaBtn">Fauna</button>
 
 <br>
 
@@ -50,36 +139,55 @@
 
 <button id="analyzeBtn">Analyze Risk</button>
 
+<!-- LOADER (THIS WAS MISSING) -->
+<div id="loadingContainer">
+<div class="spinner"></div>
+<p>Analyzing biodiversity data across India...</p>
+</div>
+
 <div id="map"></div>
 
 <table>
-  <thead>
-    <tr>
-      <th>Species</th>
-      <th>State</th>
-      <th>Temp</th>
-      <th>AQI</th>
-      <th>Threat</th>
-      <th>ML Risk</th>
-      <th>RL Action</th>
-    </tr>
-  </thead>
 
-  <tbody>
-    <tr>
-      <td id="tSpecies"></td>
-      <td id="tState"></td>
-      <td id="tTemp"></td>
-      <td id="tAQI"></td>
-      <td id="tThreat"></td>
-      <td id="tRisk"></td>
-      <td id="tAction"></td>
-    </tr>
-  </tbody>
+<thead>
+<tr>
+<th>Species</th>
+<th>State</th>
+<th>Temp</th>
+<th>AQI</th>
+<th>Threat</th>
+<th>ML Risk</th>
+<th>RL Action</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
 </table>
 
+
+<div id="wikiPopup" class="popup">
+
+<div class="popup-content">
+
+<span id="closePopup">&times;</span>
+
+<h2 id="wikiTitle"></h2>
+
+<img id="wikiImage"/>
+
+<p id="wikiSummary"></p>
+
+<a id="wikiLink" target="_blank">
+Read full article on Wikipedia
+</a>
+
+</div>
+
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="script.js"></script>
+<script src="./script.js"></script>
 
 </body>
 </html>
